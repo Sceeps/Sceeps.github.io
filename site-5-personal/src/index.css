@@ -1,0 +1,283 @@
+@import "tailwindcss";
+
+/* Три роли цвета: stock — бумага, print — синяя линия чертежа, red — только
+   пометки правок. Красным ничего не украшают: красное значит исправленное. */
+
+@theme {
+  /* Бумага */
+  --color-stock: oklch(0.965 0.006 250);
+  --color-panel: oklch(0.93 0.012 256);
+  --color-rule: oklch(0.82 0.018 258);
+  --color-rule-strong: oklch(0.7 0.022 258);
+
+  /* Линия чертежа */
+  --color-ink: oklch(0.215 0.055 262);
+  --color-ink-mid: oklch(0.47 0.03 258);
+  --color-print: oklch(0.3 0.13 264);
+  --color-print-deep: oklch(0.235 0.1 265);
+
+  /* Правки */
+  --color-red: oklch(0.52 0.2 30);
+  --color-red-ink: oklch(0.455 0.185 28);
+  --color-red-light: oklch(0.74 0.16 32);
+  --color-red-tint: oklch(0.945 0.022 40);
+
+  /* Выворотка по синей заливке */
+  --color-paper: oklch(0.97 0.008 250);
+  --color-paper-dim: oklch(0.86 0.022 255);
+  --color-paper-soft: oklch(0.78 0.03 255);
+
+  /* Код */
+  --color-code: oklch(0.235 0.055 265);
+  --color-c-plain: oklch(0.93 0.012 250);
+  --color-c-key: oklch(0.79 0.115 35);
+  --color-c-num: oklch(0.895 0.075 95);
+  --color-c-com: oklch(0.7 0.032 255);
+  --color-c-str: oklch(0.855 0.09 150);
+
+  --font-drawn: "Overpass", ui-sans-serif, system-ui, sans-serif;
+  --font-spec: "Andada Pro", ui-serif, Georgia, serif;
+  --font-dim: "Overpass Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --ease-sheet: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --z-sheet: 1;
+  --z-mark: 5;
+  --z-titleblock: 40;
+}
+
+@layer base {
+  html {
+    background: var(--color-stock);
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--color-stock);
+    color: var(--color-ink);
+    font-family: var(--font-spec);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-drawn);
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Браузерные стили ставят code/pre/kbd/samp свой моно-стек и перебивают
+     наследование, из-за чего Overpass Mono в листинге тихо теряется. */
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-dim);
+  }
+
+  a {
+    color: inherit;
+  }
+
+  ::selection {
+    background: var(--color-red);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-red);
+    outline-offset: 2px;
+  }
+
+  /* На синей заливке тёмно-красное кольцо фокуса тонет, берём светлое. */
+  .on-print :focus-visible,
+  .on-code :focus-visible {
+    outline-color: var(--color-red-light);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+@layer components {
+  /* Печатная сетка листа: два слоя линий 8/40px очень слабого контраста. */
+  .stock-grid {
+    background-color: var(--color-stock);
+    background-image:
+      linear-gradient(to right, oklch(0.3 0.13 264 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.3 0.13 264 / 0.045) 1px, transparent 1px),
+      linear-gradient(to right, oklch(0.3 0.13 264 / 0.075) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.3 0.13 264 / 0.075) 1px, transparent 1px);
+    background-size:
+      8px 8px,
+      8px 8px,
+      40px 40px,
+      40px 40px;
+  }
+
+  /* Номер листа */
+  .sheet-no {
+    font-family: var(--font-dim);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dim {
+    font-family: var(--font-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  /* Размерная линия «засечка — линия — засечка», чистый CSS. */
+  .leader {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 1.5rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.45;
+  }
+
+  .leader::before,
+  .leader::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    width: 1px;
+    height: 7px;
+    background: currentColor;
+  }
+
+  .leader::before {
+    left: 0;
+  }
+
+  .leader::after {
+    right: 0;
+  }
+
+  /* Подчёркивание проверяющего: статичное, означает «здесь исправлено», а не
+     ссылку. */
+  .marked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'%3E%3Cpath d='M0 4.2 C18 1.6 34 5.1 52 3.4 C70 1.7 86 4.9 104 3.1 C110 2.6 116 3.4 120 2.8' fill='none' stroke='%23c21b0d' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 100% 0.32em;
+    padding-bottom: 0.1em;
+  }
+
+  .rev-bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.85rem;
+    height: 1.85rem;
+    padding-inline: 0.3rem;
+    border: 1.5px solid var(--color-red);
+    border-radius: 999px;
+    color: var(--color-red-ink);
+    font-family: var(--font-dim);
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stamp {
+    font-family: var(--font-drawn);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.35);
+    padding: 0.4rem 0.7rem 0.35rem;
+  }
+}
+
+@layer utilities {
+  /* Неровность засветки: без неё большое синее поле выглядит плоской
+     плашкой, а не отпечатком. */
+  .diazo {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .diazo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-sheet);
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.035' numOctaves='3' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E");
+    background-size: 260px 260px;
+  }
+
+  .diazo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-sheet);
+    pointer-events: none;
+    opacity: 0.055;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* По умолчанию блок ВИДИМ. Прозрачность включает только скрипт, поэтому без
+     JS страница приходит целиком. */
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .js-reveal .reveal {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    transition:
+      opacity 0.7s var(--ease-sheet),
+      transform 0.7s var(--ease-sheet);
+  }
+
+  .js-reveal .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .js-reveal .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

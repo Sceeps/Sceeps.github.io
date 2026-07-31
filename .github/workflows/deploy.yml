@@ -1,0 +1,131 @@
+name: Сборка и публикация на GitHub Pages
+
+# Шесть отдельных Vite-проектов собираются в один артефакт:
+#   site-0-hub            → /            (визитка, base '/')
+#   site-1-ledger-saas    → /ledger/
+#   site-2-grain-studio   → /grain/
+#   site-3-datum-dashboard→ /datum/
+#   site-4-kerf-store     → /kerf/
+#   site-5-personal       → /mara/
+# В репозитории лежат только исходники: dist/ собирается здесь и никогда
+# не коммитится.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Права ровно те, что нужны deploy-pages, и ни одного лишнего.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Один деплой за раз; новый push не отменяет уже идущую публикацию.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Собрать шесть сайтов
+    runs-on: ubuntu-latest
+    steps:
+      - name: Забрать исходники
+        uses: actions/checkout@v4
+
+      - name: Поставить Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Настроить Pages
+        uses: actions/configure-pages@v5
+
+      # npm ci требует package-lock.json; он есть у всех шести проектов.
+      # Ставим и собираем каждый по очереди, чтобы упавший сайт было видно
+      # по имени шага, а не в общей свалке логов.
+      - name: Визитка (site-0-hub, base '/')
+        run: |
+          npm ci --prefix site-0-hub
+          npm run build --prefix site-0-hub
+
+      - name: Ledger (base '/ledger/')
+        run: |
+          npm ci --prefix site-1-ledger-saas
+          npm run build --prefix site-1-ledger-saas
+
+      - name: Grain (base '/grain/')
+        run: |
+          npm ci --prefix site-2-grain-studio
+          npm run build --prefix site-2-grain-studio
+
+      - name: Datum (base '/datum/')
+        run: |
+          npm ci --prefix site-3-datum-dashboard
+          npm run build --prefix site-3-datum-dashboard
+
+      - name: Kerf (base '/kerf/')
+        run: |
+          npm ci --prefix site-4-kerf-store
+          npm run build --prefix site-4-kerf-store
+
+      - name: Mara (base '/mara/')
+        run: |
+          npm ci --prefix site-5-personal
+          npm run build --prefix site-5-personal
+
+      # Складываем шесть dist/ в одно дерево: визитка в корень, остальные
+      # в свои подпапки — ровно так, как их ждут выставленные base.
+      - name: Собрать общее дерево публикации
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp -r site-0-hub/dist/. _site/
+          for pair in "site-1-ledger-saas:ledger" \
+                      "site-2-grain-studio:grain" \
+                      "site-3-datum-dashboard:datum" \
+                      "site-4-kerf-store:kerf" \
+                      "site-5-personal:mara"; do
+            src="${pair%%:*}"; slug="${pair##*:}"
+            mkdir -p "_site/${slug}"
+            cp -r "${src}/dist/." "_site/${slug}/"
+          done
+          # GitHub Pages иначе пропускает файлы и папки, начинающиеся с "_".
+          touch _site/.nojekyll
+
+      # Проверка на месте, а не «надеюсь, собралось»: каждый index.html
+      # обязан существовать и ссылаться на ассеты СВОЕГО подпути. Ошибка в
+      # base — самая частая причина белого экрана на подпути.
+      - name: Проверить пути ассетов
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          grep -q '"/assets/' _site/index.html \
+            || { echo "ОШИБКА: визитка не ссылается на /assets/"; exit 1; }
+          for slug in ledger grain datum kerf mara; do
+            test -f "_site/${slug}/index.html" \
+              || { echo "ОШИБКА: нет _site/${slug}/index.html"; exit 1; }
+            grep -q "\"/${slug}/assets/" "_site/${slug}/index.html" \
+              || { echo "ОШИБКА: ${slug} собран с неверным base"; exit 1; }
+          done
+          echo "Все шесть сайтов на месте, пути ассетов верные."
+          du -sh _site
+
+      - name: Загрузить артефакт
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Опубликовать
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Развернуть на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

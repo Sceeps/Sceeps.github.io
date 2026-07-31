@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Панель К-5">
+  <rect width="32" height="32" fill="#3d485f"/>
+  <rect x="2" y="2" width="28" height="28" fill="none" stroke="#a1a5ac" stroke-width="1"/>
+  <rect x="5" y="7" width="22" height="7" fill="#080c16"/>
+  <rect x="5" y="18" width="22" height="7" fill="#080c16"/>
+  <circle cx="9" cy="10.5" r="2" fill="#5fd39a"/>
+  <circle cx="16" cy="10.5" r="2" fill="#cbf24a"/>
+  <circle cx="23" cy="10.5" r="2" fill="#e08fdc"/>
+  <circle cx="12.5" cy="21.5" r="2" fill="#fc7a6a"/>
+  <circle cx="19.5" cy="21.5" r="2" fill="#7b8ce8"/>
+</svg>
